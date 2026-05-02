@@ -1,0 +1,3 @@
+src/users/users.service.ts(2,10): error TS2305: Module '"@prisma/client"' has no exported member 'User'.
+src/users/users.service.ts(17,29): error TS2694: Namespace '"C:/Users/USER/Downloads/vidrush/node_modules/.prisma/client/default".Prisma' has no exported member 'UserCreateInput'.
+src/users/users.service.ts(23,18): error TS2694: Namespace '"C:/Users/USER/Downloads/vidrush/node_modules/.prisma/client/default".Prisma' has no exported member 'UserUpdateInput'.

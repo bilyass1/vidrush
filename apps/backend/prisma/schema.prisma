@@ -1,0 +1,168 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  PAYG
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+}
+
+enum VideoType {
+  YOUTUBE
+  ECOMMERCE
+}
+
+enum VideoStatus {
+  PENDING
+  SCRIPTING
+  VOICING
+  GENERATING
+  RENDERING
+  DONE
+  FAILED
+}
+
+enum Market {
+  US
+  EU
+  TN
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String            @id @default(cuid())
+  email               String            @unique
+  name                String
+  passwordHash        String
+  plan                Plan              @default(FREE)
+  stripeCustomerId    String?
+  youtubeRefreshToken String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  subscription        Subscription?
+  videoGenerations    VideoGeneration[]
+  videoProjects       VideoProject[]
+  scriptProjects      ScriptProject[]
+  youtubeChannel      YoutubeChannel?
+  ecommerceSets       EcommerceSet[]
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  plan                 Plan
+  status               SubscriptionStatus
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime
+  createdAt            DateTime           @default(now())
+
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VideoGeneration {
+  id             String      @id @default(cuid())
+  userId         String
+  type           VideoType
+  status         VideoStatus @default(PENDING)
+  inputPrompt    String
+  outputUrl      String?
+  durationMin    Float?
+  costUsd        Float?
+  youtubeVideoId String?
+  youtubeUrl     String?
+  pipeline       String      @default("free")
+  createdAt      DateTime    @default(now())
+
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VideoProject {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  timeline  Json
+  exportUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum ScriptProjectStatus {
+  PENDING
+  GENERATING
+  DONE
+  FAILED
+}
+
+enum GenerationMode {
+  FREE
+  PREMIUM
+}
+
+model ScriptProject {
+  id               String              @id @default(cuid())
+  userId           String
+  idea             String
+  genre            String
+  aspectRatio      String
+  language         String
+  durationSeconds  Int
+  voiceId          String?
+  generationMode   GenerationMode      @default(FREE)
+  scriptJson       Json?
+  status           ScriptProjectStatus @default(PENDING)
+  videoJobId       String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model YoutubeChannel {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  channelId    String
+  name         String?
+  thumbnailUrl String?
+  refreshToken String
+  accessToken  String
+  tokenExpiry  DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EcommerceSet {
+  id             String   @id @default(cuid())
+  userId         String
+  productName    String
+  market         Market
+  inputImages    String[]
+  outputPosters  String[]
+  outputVideos   String[]
+  scriptText     String?
+  price          Float?
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm install:*)",
+      "Bash(npx turbo:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx prisma:*)",
+      "Bash(pg_isready -h localhost -p 5432)",
+      "Bash(powershell.exe -Command \"Get-Service -Name postgresql* 2>&1 | Select-Object Name,Status\")",
+      "Bash(powershell.exe -Command \"& ''C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\\\\psql.exe'' -U postgres -c ''\\\\l'' 2>&1\")"
+    ]
+  }
+}
