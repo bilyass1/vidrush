@@ -719,7 +719,8 @@ export default function ScriptEnginePage() {
               <p className="text-xs text-zinc-600">Voice selection is saved for later — video generation uses the script only for now.</p>
             </div>
 
-            {/* Generation Mode */}
+            {/* Generation Mode - HIDDEN */}
+            {false && (
             <Section>
               <div className="flex items-center gap-4 mb-4">
                 <h2 className="text-lg font-bold text-white">Generation Mode</h2>
@@ -749,6 +750,7 @@ export default function ScriptEnginePage() {
                 </button>
               </div>
             </Section>
+            )}
 
             {/* Error */}
             {error && (
@@ -759,7 +761,7 @@ export default function ScriptEnginePage() {
             )}
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <button
                 type="button"
                 onClick={handleGenerateDirectly}
@@ -778,6 +780,7 @@ export default function ScriptEnginePage() {
                 <span className="text-xs font-normal opacity-75">Gemini développe l'idée → génère vidéo (30s max)</span>
               </button>
 
+              {false && (
               <button
                 type="button"
                 onClick={handleGenerateScript}
@@ -795,6 +798,7 @@ export default function ScriptEnginePage() {
                 </div>
                 <span className="text-xs font-normal opacity-75">Revoyez et éditez le script avant génération</span>
               </button>
+              )}
             </div>
           </div>
         )}

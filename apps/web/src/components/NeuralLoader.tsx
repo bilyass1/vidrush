@@ -130,7 +130,6 @@ function mkParticles(n: number): P[] {
     dy: -(20 + Math.random()*80),
   }))
 }
-const PARTICLES = mkParticles(220)
 
 const MSGS = [
   'Analyzing YouTube topic...',
@@ -151,6 +150,12 @@ export function NeuralLoader({ onComplete, message, triggerComplete }: NeuralLoa
   const [msgVis, setMsgVis] = useState(true)
   const [exiting, setExiting] = useState(false)
   const [gone, setGone] = useState(false)
+  const [particles, setParticles] = useState<P[]>([])
+
+  // Generate particles only on client to avoid hydration mismatch
+  useEffect(() => {
+    setParticles(mkParticles(220))
+  }, [])
 
   useEffect(() => {
     if (message) return
@@ -190,7 +195,7 @@ export function NeuralLoader({ onComplete, message, triggerComplete }: NeuralLoa
         <div style={{position:'absolute',inset:0,background:'radial-gradient(ellipse 40% 30% at 70% 40%, rgba(0,100,200,0.1) 0%, transparent 60%)',pointerEvents:'none'}}/>
 
         {/* ── Particles ── */}
-        {PARTICLES.map(p=>(
+        {particles.map(p=>(
           <div key={p.id} style={{
             position:'absolute',
             left:`${p.x}%`, top:`${p.y}%`,
