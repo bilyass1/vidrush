@@ -273,6 +273,22 @@ export const video = {
     });
   },
 
+  async directGenerateWithImage(formData: FormData): Promise<{ jobId: string }> {
+    const token = getToken();
+    const res = await fetch(`${API_URL}/video/direct-generate`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(err.message || 'Failed to start generation');
+    }
+    return res.json();
+  },
+
   async generateScript(data: {
     topic: string;
     genre: string;

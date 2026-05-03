@@ -29,6 +29,8 @@ import {
   Monitor,
   Smartphone,
   Square,
+  Upload,
+  X,
 } from 'lucide-react'
 import { NeuralLoader } from '@/components/NeuralLoader'
 import { cn } from '@/lib/utils'
@@ -118,6 +120,8 @@ export default function YoutubeGeneratorPage() {
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null)
   const [selectedVoiceName, setSelectedVoiceName] = useState<string | null>(null)
   const [pipeline, setPipeline] = useState<'free' | 'premium'>('free')
+  const [referenceImage, setReferenceImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   // Page state
   const [view, setView] = useState<PageView>('form')
@@ -211,18 +215,48 @@ export default function YoutubeGeneratorPage() {
     const clampedDuration = Math.min(Math.max(Math.round(duration), 2), 30)
 
     try {
-      const { jobId } = await video.directGenerate({
-        idea: topic.trim(),
-        genre,
-        aspectRatio,
-        market,
-        duration: clampedDuration,
-      })
+      const formData = new FormData()
+      formData.append('idea', topic.trim())
+      formData.append('genre', genre)
+      formData.append('aspectRatio', aspectRatio)
+      formData.append('market', market)
+      formData.append('duration', clampedDuration.toString())
+      
+      // Add image if present and set disable_i2v to false
+      if (referenceImage) {
+        formData.append('referenceImage', referenceImage)
+        formData.append('disable_i2v', 'false')
+      } else {
+        formData.append('disable_i2v', 'true')
+      }
+
+      const { jobId } = await video.directGenerateWithImage(formData)
       setDirectJobId(jobId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start generation')
       setView('form')
     }
+  }
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Image size must be less than 10MB')
+        return
+      }
+      setReferenceImage(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeImage = () => {
+    setReferenceImage(null)
+    setImagePreview(null)
   }
 
   const handleGenerate = async () => {
@@ -493,6 +527,49 @@ export default function YoutubeGeneratorPage() {
             {charCount > 0 && charCount < 3 && (
               <p className="text-xs text-red-400">Minimum 3 characters required</p>
             )}
+
+            {/* Reference Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-3">
+                Reference Image (Optional)
+                <span className="text-xs text-zinc-500 ml-2">
+                  Upload an image to guide the video generation
+                </span>
+              </label>
+              
+              {!imagePreview ? (
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-700 rounded-xl cursor-pointer hover:border-purple-500/50 hover:bg-zinc-800/50 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 text-zinc-500 mb-2" />
+                    <p className="text-sm text-zinc-400">
+                      <span className="font-semibold">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-zinc-600 mt-1">PNG, JPG, WEBP (MAX. 10MB)</p>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                  />
+                </label>
+              ) : (
+                <div className="relative w-full h-48 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-950">
+                  <img
+                    src={imagePreview}
+                    alt="Reference"
+                    className="w-full h-full object-contain"
+                  />
+                  <button
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                    aria-label="Remove image"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ─── 2. Genre / Type ──────────────────────── */}
