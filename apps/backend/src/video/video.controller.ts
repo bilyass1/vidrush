@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Param, Req, UseGuards, Query, Delete } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, Req, UseGuards, Query, Delete, UseInterceptors, UploadedFile } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { Request } from "express";
 import { VideoService } from "./video.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -21,9 +22,25 @@ export class VideoController {
 
   @Post("direct-generate")
   @UseGuards(JwtAuthGuard)
-  async directGenerate(@Req() req: Request, @Body() dto: DirectGenerateDto) {
+  @UseInterceptors(FileInterceptor('referenceImage', {
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB
+    },
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed'), false);
+      }
+    },
+  }))
+  async directGenerate(
+    @Req() req: Request,
+    @Body() dto: DirectGenerateDto,
+    @UploadedFile() file?: Express.Multer.File
+  ) {
     const { userId } = req.user as any;
-    return this.videoGenerationService.startDirectGeneration(userId, dto);
+    return this.videoGenerationService.startDirectGeneration(userId, dto, file);
   }
 
   @Post("script-preview")

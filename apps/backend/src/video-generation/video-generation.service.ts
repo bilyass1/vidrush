@@ -94,7 +94,7 @@ export class VideoGenerationService {
     });
   }
 
-  async startDirectGeneration(userId: string, dto: DirectGenerateDto): Promise<{ jobId: string }> {
+  async startDirectGeneration(userId: string, dto: DirectGenerateDto, file?: Express.Multer.File): Promise<{ jobId: string }> {
     const videoGeneration = await this.prisma.videoGeneration.create({
       data: {
         userId,
@@ -115,6 +115,12 @@ export class VideoGenerationService {
       aspectRatio: dto.aspectRatio,
       duration: dto.duration,
       market: dto.market,
+      referenceImage: file ? {
+        buffer: file.buffer,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+      } : undefined,
+      disable_i2v: dto.disable_i2v,
     }).catch(() => { /* errors are handled inside the service */ });
 
     return { jobId: videoGeneration.id };

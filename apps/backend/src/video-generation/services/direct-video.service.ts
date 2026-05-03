@@ -13,6 +13,12 @@ export interface DirectGenerateInput {
   aspectRatio: string;
   duration: number; // seconds
   market: string;
+  referenceImage?: {
+    buffer: Buffer;
+    originalname: string;
+    mimetype: string;
+  };
+  disable_i2v?: boolean;
 }
 
 // Map aspect ratio → LTX dimensions (must be divisible by 32)
@@ -37,7 +43,7 @@ export class DirectVideoService {
   ) {}
 
   async generate(input: DirectGenerateInput): Promise<void> {
-    const { videoGenerationId: id, userId, idea, genre, aspectRatio, duration, market } = input;
+    const { videoGenerationId: id, userId, idea, genre, aspectRatio, duration, market, referenceImage, disable_i2v } = input;
 
     try {
       // STEP 1 — Expand idea into cinematic LTX prompt via OpenRouter
@@ -54,12 +60,20 @@ export class DirectVideoService {
 
       this.logger.log(`[direct] LTX params: ${dims.width}x${dims.height}, ${numFrames} frames`);
 
+      // Convert reference image to base64 if provided
+      let firstFrameBase64: string | null = null;
+      if (referenceImage && !disable_i2v) {
+        firstFrameBase64 = referenceImage.buffer.toString('base64');
+        this.logger.log(`[direct] Using reference image: ${referenceImage.originalname}`);
+      }
+
       const response = await this.ltxService.generateClipWithRetry({
         prompt: ltxPrompt,
         width: dims.width,
         height: dims.height,
         numFrames,
         fps: 25,
+        firstFrameBase64,
       });
 
       // STEP 3 — Save directly as DONE (URL is already the ComfyUI view URL)
