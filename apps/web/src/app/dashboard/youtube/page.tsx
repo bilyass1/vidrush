@@ -215,7 +215,6 @@ export default function YoutubeGeneratorPage() {
     setDirectVideoUrl(null)
     setDirectProgress(0)
     setDirectMessage('Starting...')
-    setView('generating')
 
     // Clamp duration: direct generation supports 2–30s
     const clampedDuration = Math.min(Math.max(Math.round(duration), 2), 30)
@@ -238,6 +237,8 @@ export default function YoutubeGeneratorPage() {
 
       const { jobId } = await video.directGenerateWithImage(formData)
       setDirectJobId(jobId)
+      // Only show generating view after successfully starting the job
+      setView('generating')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start generation')
       setView('form')
