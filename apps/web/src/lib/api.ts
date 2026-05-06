@@ -378,3 +378,44 @@ export const scriptEngine = {
     return fetchApi(`/script-engine/status/${projectId}`);
   },
 };
+
+export interface Flux2GenerateRequest {
+  prompt: string;
+  width?: number;
+  height?: number;
+  steps?: number;
+  guidance?: number;
+  seed?: number;
+  enableTurbo?: boolean;
+}
+
+export interface Flux2GenerateResponse {
+  jobId: string;
+  imagePath: string;
+  width: number;
+  height: number;
+}
+
+export const flux2 = {
+  async generateImage(formData: FormData): Promise<{ success: boolean; data: Flux2GenerateResponse }> {
+    const token = getToken();
+    const res = await fetch(`${API_URL}/flux2/generate`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Request failed' }));
+      throw new Error(err.message || 'Failed to generate image');
+    }
+    return res.json();
+  },
+
+  async checkHealth(): Promise<{ success: boolean; connected: boolean; url: string }> {
+    return fetchApi<{ success: boolean; connected: boolean; url: string }>('/flux2/health', {
+      method: 'POST',
+    });
+  },
+};

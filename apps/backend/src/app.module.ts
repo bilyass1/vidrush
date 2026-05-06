@@ -11,6 +11,7 @@ import { GatewayModule } from "./gateway/gateway.module";
 import { YoutubeModule } from "./youtube/youtube.module";
 import { ScriptEngineModule } from "./script-engine/script-engine.module";
 import { MusicGenerationModule } from "./music-generation/music-generation.module";
+import { Flux2Module } from "./flux2/flux2.module";
 import { BullModule } from '@nestjs/bull';
 
 @Module({
@@ -35,6 +36,7 @@ import { BullModule } from '@nestjs/bull';
     YoutubeModule,
     ScriptEngineModule,
     MusicGenerationModule,
+    Flux2Module,
   ],
   controllers: [AppController],
   providers: [AppService],
