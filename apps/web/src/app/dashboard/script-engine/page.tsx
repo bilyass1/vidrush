@@ -40,6 +40,12 @@ const LANGUAGES = [
   { id: 'ar',    label: 'Arabic',     flag: '🇸🇦' },
 ] as const
 
+const QUALITY_PRESETS = [
+  { id: 'low', label: 'Low (360p)', width: 640, height: 360, fps: 15, desc: 'Fast preview', time: '~1-2 min', icon: '⚡' },
+  { id: 'medium', label: 'Medium (720p)', width: 1280, height: 720, fps: 25, desc: 'Social media', time: '~3-5 min', icon: '⭐' },
+  { id: 'high', label: 'High (1080p)', width: 1920, height: 1080, fps: 30, desc: 'Professional', time: '~8-12 min', icon: '🎬' },
+] as const
+
 const SNAP_POINTS = [8, 15, 30, 60, 180, 300, 600, 900, 1200, 1600, 2400]
 
 function formatDuration(s: number): string {
@@ -314,6 +320,8 @@ export default function ScriptEnginePage() {
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [language, setLanguage] = useState('en-us')
   const [duration, setDuration] = useState(60)
+  const [quality, setQuality] = useState<'low' | 'medium' | 'high'>('medium')
+  const [customFps, setCustomFps] = useState<number | null>(null)
   const [voiceId, setVoiceId] = useState<string | null>(null)
   const [voiceName, setVoiceName] = useState<string | null>(null)
   const [generationMode, setGenerationMode] = useState<'free' | 'premium'>('free')
@@ -699,10 +707,117 @@ export default function ScriptEnginePage() {
               </div>
             </Section>
 
-            {/* Step 6: Voice (optional) */}
-            <div className="bg-[#1e1e2e] border border-white/10 rounded-2xl p-8 space-y-6">
+            {/* Step 6: Quality & FPS */}
+            <Section>
               <div className="flex items-center gap-4">
                 <StepBadge n={6} />
+                <div>
+                  <h2 className="text-xl font-bold text-white">Quality & FPS</h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">Choose video quality (max 1080p, 30fps, 10s)</p>
+                </div>
+              </div>
+              
+              {/* Quality Presets */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {QUALITY_PRESETS.map((preset) => {
+                  const selected = quality === preset.id
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        setQuality(preset.id)
+                        setCustomFps(null) // Reset custom FPS when selecting preset
+                      }}
+                      className={cn(
+                        'flex flex-col gap-3 p-5 rounded-2xl border transition-all text-left',
+                        selected ? 'bg-emerald-600/20 border-emerald-500' : 'bg-zinc-950 border-white/10 hover:border-white/20'
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl">{preset.icon}</span>
+                        <span className={cn('text-xs font-bold px-2 py-1 rounded-full', selected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-500')}>
+                          {preset.fps} FPS
+                        </span>
+                      </div>
+                      <div>
+                        <p className={cn('text-lg font-black', selected ? 'text-white' : 'text-zinc-400')}>{preset.label}</p>
+                        <p className={cn('text-xs mt-1', selected ? 'text-emerald-400' : 'text-zinc-500')}>{preset.desc}</p>
+                        <p className="text-[10px] text-zinc-600 mt-1">{preset.time}</p>
+                      </div>
+                      <div className="text-[10px] text-zinc-600 font-mono">
+                        {preset.width}x{preset.height}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Custom FPS Control */}
+              <div className="bg-zinc-950 border border-white/10 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-white">Custom FPS (Optional)</label>
+                  <span className="text-xs text-zinc-500">Max 30 FPS</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min={15}
+                    max={30}
+                    step={5}
+                    value={customFps ?? QUALITY_PRESETS.find(p => p.id === quality)?.fps ?? 25}
+                    onChange={(e) => setCustomFps(Number(e.target.value))}
+                    className="flex-1 h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                  <span className="text-lg font-black text-white font-mono w-16 text-right">
+                    {customFps ?? QUALITY_PRESETS.find(p => p.id === quality)?.fps ?? 25} FPS
+                  </span>
+                </div>
+                <div className="flex justify-between px-1">
+                  {[15, 20, 25, 30].map((fps) => (
+                    <button
+                      key={fps}
+                      type="button"
+                      onClick={() => setCustomFps(fps)}
+                      className={cn(
+                        'text-[10px] font-bold uppercase tracking-wider transition-colors px-2 py-1 rounded',
+                        (customFps ?? QUALITY_PRESETS.find(p => p.id === quality)?.fps) === fps 
+                          ? 'text-emerald-400 bg-emerald-500/10' 
+                          : 'text-zinc-600 hover:text-zinc-400'
+                      )}
+                    >
+                      {fps}
+                    </button>
+                  ))}
+                </div>
+                {customFps && (
+                  <button
+                    onClick={() => setCustomFps(null)}
+                    className="text-xs text-zinc-500 hover:text-white transition-colors"
+                  >
+                    Reset to preset FPS
+                  </button>
+                )}
+              </div>
+
+              {/* Info Banner */}
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex items-start gap-2">
+                <AlertCircle size={16} className="text-blue-400 mt-0.5 shrink-0" />
+                <div className="text-xs text-blue-300">
+                  <p className="font-bold mb-1">Constraints automatiques:</p>
+                  <ul className="space-y-0.5 text-blue-400/80">
+                    <li>• Durée max: 10 secondes</li>
+                    <li>• Résolution max: 1080p (1920x1080)</li>
+                    <li>• FPS max: 30 fps</li>
+                  </ul>
+                </div>
+              </div>
+            </Section>
+
+            {/* Step 7: Voice (optional) */}
+            <div className="bg-[#1e1e2e] border border-white/10 rounded-2xl p-8 space-y-6">
+              <div className="flex items-center gap-4">
+                <StepBadge n={7} />
                 <div>
                   <h2 className="text-xl font-bold text-white">Voice Model (Optional)</h2>
                   <p className="text-xs text-zinc-500 mt-0.5">Pick a voice for future TTS generation</p>

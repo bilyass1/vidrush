@@ -16,6 +16,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Music,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -28,6 +29,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: Home },
   { label: 'YouTube Gen', href: '/dashboard/youtube', icon: Youtube },
+  { label: 'Music Gen', href: '/dashboard/music', icon: Music },
   { label: 'E-Commerce', href: '/dashboard/ecommerce', icon: ShoppingBag },
   { label: 'Video Editor', href: '/dashboard/editor', icon: Scissors },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },

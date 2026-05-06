@@ -3,14 +3,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
+import { VIDEO_CONSTRAINTS, constrainVideoParams } from '../config/video-constraints.config';
 
 export interface LtxGenerateRequest {
   prompt: string;
   negativePrompt?: string;
-  width?: number;
-  height?: number;
-  numFrames?: number;
-  fps?: number;
+  width?: number; // Max 1920 (1080p width for 16:9)
+  height?: number; // Max 1080
+  numFrames?: number; // Calculated from duration and fps
+  fps?: number; // Max 30fps
+  duration?: number; // Max 10 seconds
   numInferenceSteps?: number;
   guidanceScale?: number;
   seed?: number;
@@ -64,6 +66,19 @@ export class LtxService {
   private patchWorkflow(workflow: any, req: LtxGenerateRequest): any {
     const patched = JSON.parse(JSON.stringify(workflow));
     
+    // Apply constraints using centralized configuration
+    const constrained = constrainVideoParams({
+      width: req.width,
+      height: req.height,
+      fps: req.fps,
+      duration: req.duration ?? (req.numFrames && req.fps ? req.numFrames / req.fps : undefined),
+    });
+    
+    // Calculate frames from constrained duration and fps
+    const numFrames = Math.round(constrained.duration * constrained.fps);
+    
+    this.logger.log(`Workflow constraints applied: ${constrained.width}x${constrained.height}, ${constrained.fps}fps, ${constrained.duration}s (${numFrames} frames)`);
+    
     // Patch prompt (node 267:266 - PrimitiveStringMultiline "Prompt")
     if (patched['267:266']?.inputs) {
       patched['267:266'].inputs.value = req.prompt;
@@ -80,23 +95,24 @@ export class LtxService {
     }
     
     // Patch width (node 267:257 - PrimitiveInt "Width")
-    if (patched['267:257']?.inputs && req.width) {
-      patched['267:257'].inputs.value = req.width;
+    if (patched['267:257']?.inputs) {
+      patched['267:257'].inputs.value = constrained.width;
     }
     
     // Patch height (node 267:258 - PrimitiveInt "Height")
-    if (patched['267:258']?.inputs && req.height) {
-      patched['267:258'].inputs.value = req.height;
+    if (patched['267:258']?.inputs) {
+      patched['267:258'].inputs.value = constrained.height;
     }
     
     // Patch frame rate (node 267:260 - PrimitiveInt "Frame Rate")
-    if (patched['267:260']?.inputs && req.fps) {
-      patched['267:260'].inputs.value = req.fps;
+    if (patched['267:260']?.inputs) {
+      patched['267:260'].inputs.value = constrained.fps;
     }
     
-    // Patch length/frames (node 267:225 - PrimitiveInt "Length")
-    if (patched['267:225']?.inputs && req.numFrames) {
-      patched['267:225'].inputs.value = req.numFrames;
+    // Patch duration (node 267:225 - PrimitiveInt "Duration")
+    // Note: This is the duration in seconds, the workflow calculates frames as duration * fps + 1
+    if (patched['267:225']?.inputs) {
+      patched['267:225'].inputs.value = constrained.duration;
     }
     
     // Patch seed (node 267:216 - RandomNoise)

@@ -10,6 +10,7 @@ import { VideoGenerationModule } from "./video-generation/video-generation.modul
 import { GatewayModule } from "./gateway/gateway.module";
 import { YoutubeModule } from "./youtube/youtube.module";
 import { ScriptEngineModule } from "./script-engine/script-engine.module";
+import { MusicGenerationModule } from "./music-generation/music-generation.module";
 import { BullModule } from '@nestjs/bull';
 
 @Module({
@@ -33,6 +34,7 @@ import { BullModule } from '@nestjs/bull';
     GatewayModule,
     YoutubeModule,
     ScriptEngineModule,
+    MusicGenerationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

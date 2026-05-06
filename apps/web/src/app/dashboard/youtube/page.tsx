@@ -93,7 +93,11 @@ const MARKETS = [
   { id: 'ar', label: 'Arabic', icon: '🇸🇦' },
 ] as const
 
-const SNAP_POINTS = [8, 15, 30, 60, 180, 300, 600, 900, 1200, 1600]
+const QUALITY_PRESETS = [
+  { id: 'low', label: 'Low (360p)', width: 640, height: 360, fps: 15, desc: 'Fast preview', time: '~1-2 min', icon: '⚡' },
+  { id: 'medium', label: 'Medium (720p)', width: 1280, height: 720, fps: 25, desc: 'Social media', time: '~3-5 min', icon: '⭐' },
+  { id: 'high', label: 'High (1080p)', width: 1920, height: 1080, fps: 30, desc: 'Professional', time: '~8-12 min', icon: '🎬' },
+] as const
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds}s`
@@ -116,7 +120,9 @@ export default function YoutubeGeneratorPage() {
   const [genre, setGenre] = useState<string>('Documentary')
   const [aspectRatio, setAspectRatio] = useState<string>('16:9')
   const [market, setMarket] = useState<string>('en-us')
-  const [duration, setDuration] = useState(60)
+  const [duration, setDuration] = useState(5) // Default 5 seconds (max 10s)
+  const [quality, setQuality] = useState<'low' | 'medium' | 'high'>('medium')
+  const [customFps, setCustomFps] = useState<number | null>(null)
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null)
   const [selectedVoiceName, setSelectedVoiceName] = useState<string | null>(null)
   const [pipeline, setPipeline] = useState<'free' | 'premium'>('free')
@@ -318,14 +324,6 @@ export default function YoutubeGeneratorPage() {
   const handleSaveDraft = (_draft: GenerationResult) => {
     setShowSuccessToast(true)
     toastRef.current = setTimeout(() => setShowSuccessToast(false), 4000)
-  }
-
-  const snapDuration = (val: number) => {
-    const closest = SNAP_POINTS.reduce((prev, curr) =>
-      Math.abs(curr - val) < Math.abs(prev - val) ? curr : prev
-    )
-    if (Math.abs(closest - val) < 8) return closest
-    return val
   }
 
   const charCount = topic.length
@@ -714,7 +712,7 @@ export default function YoutubeGeneratorPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white">Duration</h2>
-                  <p className="text-xs text-zinc-500 mt-0.5">How long should the video be?</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">How long should the video be? (Max 10s for video generation)</p>
                 </div>
               </div>
               <div className="text-right">
@@ -730,16 +728,16 @@ export default function YoutubeGeneratorPage() {
             <div className="space-y-3">
               <input
                 type="range"
-                min={8}
-                max={1600}
+                min={2}
+                max={10}
                 step={1}
-                value={duration}
-                onChange={(e) => setDuration(snapDuration(Number(e.target.value)))}
+                value={Math.min(duration, 10)}
+                onChange={(e) => setDuration(Number(e.target.value))}
                 className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-purple-500 duration-slider"
                 aria-label="Video duration in seconds"
               />
               <div className="flex justify-between px-1">
-                {[8, 60, 300, 600, 1200, 1600].map((snap) => (
+                {[2, 3, 5, 7, 10].map((snap) => (
                   <button
                     key={snap}
                     type="button"
@@ -756,9 +754,141 @@ export default function YoutubeGeneratorPage() {
                 ))}
               </div>
             </div>
+
+            {/* Warning banner */}
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 flex items-start gap-2">
+              <AlertCircle size={16} className="text-yellow-400 mt-0.5 shrink-0" />
+              <div className="text-xs text-yellow-300">
+                <p className="font-bold">Contrainte de durée:</p>
+                <p className="text-yellow-400/80 mt-0.5">
+                  La durée maximale pour la génération vidéo est de <span className="font-bold">10 secondes</span>. 
+                  Pour des vidéos plus longues, générez plusieurs clips et assemblez-les.
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* ─── 6. Voice Test ──────────────────────── */}
+          {/* ─── 6. Quality & FPS ─────────────────────── */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                6
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Quality & FPS</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">Choose video quality (max 1080p, 30fps, 10s)</p>
+              </div>
+            </div>
+            
+            {/* Quality Presets */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {QUALITY_PRESETS.map((preset) => {
+                const selected = quality === preset.id
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      setQuality(preset.id)
+                      setCustomFps(null) // Reset custom FPS when selecting preset
+                    }}
+                    className={cn(
+                      'flex flex-col gap-3 p-5 rounded-2xl border transition-all text-left group',
+                      selected 
+                        ? 'bg-emerald-600/10 border-emerald-500 shadow-lg shadow-emerald-500/10' 
+                        : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl">{preset.icon}</span>
+                      <span className={cn(
+                        'text-xs font-bold px-2 py-1 rounded-full',
+                        selected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-500 group-hover:text-zinc-400'
+                      )}>
+                        {preset.fps} FPS
+                      </span>
+                    </div>
+                    <div>
+                      <p className={cn('text-lg font-black', selected ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-200')}>
+                        {preset.label}
+                      </p>
+                      <p className={cn('text-xs mt-1', selected ? 'text-emerald-400' : 'text-zinc-500')}>
+                        {preset.desc}
+                      </p>
+                      <p className="text-[10px] text-zinc-600 mt-1">{preset.time}</p>
+                    </div>
+                    <div className="text-[10px] text-zinc-600 font-mono">
+                      {preset.width}x{preset.height}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Custom FPS Control */}
+            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-bold text-white">Custom FPS (Optional)</label>
+                <span className="text-xs text-zinc-500">Max 30 FPS</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min={15}
+                  max={30}
+                  step={5}
+                  value={customFps ?? QUALITY_PRESETS.find(p => p.id === quality)?.fps ?? 25}
+                  onChange={(e) => setCustomFps(Number(e.target.value))}
+                  className="flex-1 h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  aria-label="Custom FPS"
+                />
+                <span className="text-lg font-black text-white font-mono w-16 text-right">
+                  {customFps ?? QUALITY_PRESETS.find(p => p.id === quality)?.fps ?? 25} FPS
+                </span>
+              </div>
+              <div className="flex justify-between px-1">
+                {[15, 20, 25, 30].map((fps) => (
+                  <button
+                    key={fps}
+                    type="button"
+                    onClick={() => setCustomFps(fps)}
+                    className={cn(
+                      'text-[10px] font-bold uppercase tracking-wider transition-colors px-2 py-1 rounded',
+                      (customFps ?? QUALITY_PRESETS.find(p => p.id === quality)?.fps) === fps 
+                        ? 'text-emerald-400 bg-emerald-500/10' 
+                        : 'text-zinc-600 hover:text-zinc-400'
+                    )}
+                  >
+                    {fps}
+                  </button>
+                ))}
+              </div>
+              {customFps && (
+                <button
+                  onClick={() => setCustomFps(null)}
+                  className="text-xs text-zinc-500 hover:text-white transition-colors"
+                >
+                  Reset to preset FPS
+                </button>
+              )}
+            </div>
+
+            {/* Info Banner */}
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex items-start gap-2">
+              <AlertCircle size={16} className="text-blue-400 mt-0.5 shrink-0" />
+              <div className="text-xs text-blue-300">
+                <p className="font-bold mb-1">Constraints automatiques:</p>
+                <ul className="space-y-0.5 text-blue-400/80">
+                  <li>• Durée max: 10 secondes</li>
+                  <li>• Résolution max: 1080p (1920x1080)</li>
+                  <li>• FPS max: 30 fps</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── 7. Voice Test ──────────────────────── */}
+          {/* Hidden: Voice Model Selection
           <VoiceTestPanel
             onVoiceSelected={(voiceId, voiceName) => {
               setSelectedVoiceId(voiceId)
@@ -766,11 +896,14 @@ export default function YoutubeGeneratorPage() {
             }}
             isLoading={view === 'loading'}
           />
+          */}
 
           {/* ─── Pipeline Selector ───────────────────── */}
+          {/* Hidden: Generation Mode Selection
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
             <PipelineSelector value={pipeline} onChange={setPipeline} />
           </div>
+          */}
 
           {/* ─── Summary banner ──────────────────────── */}
           {topic.trim().length >= 3 && (
@@ -794,14 +927,14 @@ export default function YoutubeGeneratorPage() {
           )}
 
           {/* ─── Generate Buttons ──────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex justify-center">
             {/* Direct Video Generation */}
             <button
               type="button"
               onClick={handleDirectGenerate}
               disabled={topic.trim().length < 3}
               className={cn(
-                'group relative flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-3xl font-black text-lg transition-all overflow-hidden',
+                'group relative flex flex-col items-center justify-center gap-2 py-6 px-8 rounded-3xl font-black text-lg transition-all overflow-hidden max-w-md w-full',
                 topic.trim().length < 3
                   ? 'bg-zinc-800 border border-zinc-700 text-zinc-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 text-white hover:scale-[1.01] shadow-2xl shadow-cyan-600/30 hover:shadow-cyan-600/50'
@@ -820,7 +953,7 @@ export default function YoutubeGeneratorPage() {
               )}
             </button>
 
-            {/* Script First */}
+            {/* Hidden: Script First Button
             <button
               type="button"
               onClick={handleGenerate}
@@ -841,6 +974,7 @@ export default function YoutubeGeneratorPage() {
                 Review &amp; edit script before generating video
               </span>
             </button>
+            */}
           </div>
 
           {/* ─── Recent Videos ───────────────────────── */}

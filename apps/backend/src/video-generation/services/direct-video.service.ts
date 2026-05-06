@@ -4,6 +4,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { VideoGateway } from '../../gateway/video.gateway';
 import { LtxService } from './ltx.service';
 import { VideoStatus, VideoType } from '@prisma/client';
+import { ASPECT_RATIO_PRESETS, VIDEO_CONSTRAINTS } from '../config/video-constraints.config';
+import { PromptBuilderService } from './prompt-builder.service';
 
 export interface DirectGenerateInput {
   videoGenerationId: string;
@@ -21,13 +23,8 @@ export interface DirectGenerateInput {
   disable_i2v?: boolean;
 }
 
-// Map aspect ratio → LTX dimensions (must be divisible by 32)
-const RATIO_DIMENSIONS: Record<string, { width: number; height: number }> = {
-  '16:9': { width: 768, height: 432 },
-  '9:16': { width: 432, height: 768 },
-  '1:1':  { width: 576, height: 576 },
-  '4:5':  { width: 512, height: 640 },
-};
+// Map aspect ratio → LTX dimensions (imported from config)
+const RATIO_DIMENSIONS = ASPECT_RATIO_PRESETS;
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'google/gemini-2.0-flash-001';
@@ -40,6 +37,7 @@ export class DirectVideoService {
     private readonly prisma: PrismaService,
     private readonly videoGateway: VideoGateway,
     private readonly ltxService: LtxService,
+    private readonly promptBuilder: PromptBuilderService,
   ) {}
 
   async generate(input: DirectGenerateInput): Promise<void> {
@@ -55,10 +53,12 @@ export class DirectVideoService {
       await this.emit(id, userId, VideoStatus.GENERATING, 30, 'Generating video with AI...');
 
       const dims = RATIO_DIMENSIONS[aspectRatio] ?? RATIO_DIMENSIONS['16:9'];
-      // LTX works at 25fps; clamp frames to a reasonable range
-      const numFrames = Math.min(Math.max(Math.round(duration * 25), 25), 257);
-
-      this.logger.log(`[direct] LTX params: ${dims.width}x${dims.height}, ${numFrames} frames`);
+      
+      // Apply constraints from centralized configuration
+      const constrainedDuration = Math.min(duration, VIDEO_CONSTRAINTS.MAX_DURATION);
+      const fps = Math.min(VIDEO_CONSTRAINTS.DEFAULT_FPS, VIDEO_CONSTRAINTS.MAX_FPS);
+      
+      this.logger.log(`[direct] LTX params: ${dims.width}x${dims.height}, ${constrainedDuration}s @ ${fps}fps`);
 
       // Convert reference image to base64 if provided
       let firstFrameBase64: string | null = null;
@@ -71,8 +71,8 @@ export class DirectVideoService {
         prompt: ltxPrompt,
         width: dims.width,
         height: dims.height,
-        numFrames,
-        fps: 25,
+        duration: constrainedDuration,
+        fps,
         firstFrameBase64,
       });
 
@@ -120,9 +120,11 @@ export class DirectVideoService {
 
   private async expandPrompt(idea: string, genre: string, aspectRatio: string, market: string): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
+    
+    // If no API key, use the genre-based prompt builder directly
     if (!apiKey) {
-      // Fallback: use the idea directly with style modifiers
-      return `${idea}, cinematic ${aspectRatio}, ${genre.toLowerCase()} style, photorealistic, 4K, no text, no watermark`;
+      const fallbackPrompt = `${idea}, cinematic ${aspectRatio}, ${genre.toLowerCase()} style, photorealistic, 4K, no text, no watermark`;
+      return this.promptBuilder.buildPromptWithGenre(genre, fallbackPrompt);
     }
 
     const aspectDesc: Record<string, string> = {
@@ -133,14 +135,14 @@ export class DirectVideoService {
     };
 
     const systemPrompt = `You are an expert at writing cinematic video generation prompts for AI video models.
-Convert the user's idea into a single rich cinematic prompt (max 200 words).
+Convert the user's idea into a single rich cinematic prompt (max 150 words) that describes the visual scene.
 Rules:
 - Describe the visual scene, not the story
 - Include: lighting, camera movement, atmosphere, style
 - Format: ${aspectDesc[aspectRatio] || 'cinematic'} composition
 - Genre feel: ${genre}
 - No dialogue, no text overlays, no watermarks
-- End with: photorealistic, 4K, no text, no watermark
+- End with: photorealistic, 8K, no text, no watermark
 - Return ONLY the prompt, nothing else`;
 
     try {
@@ -153,7 +155,7 @@ Rules:
             { role: 'user', content: idea },
           ],
           temperature: 0.7,
-          max_tokens: 300,
+          max_tokens: 250,
         },
         {
           timeout: 30000,
@@ -165,10 +167,14 @@ Rules:
           },
         },
       );
-      return res.data.choices[0].message.content.trim();
+      
+      const expandedPrompt = res.data.choices[0].message.content.trim();
+      // Apply genre styling to the expanded prompt
+      return this.promptBuilder.buildPromptWithGenre(genre, expandedPrompt);
     } catch (err: any) {
       this.logger.warn(`OpenRouter prompt expansion failed, using fallback: ${err.message}`);
-      return `${idea}, cinematic ${aspectRatio}, ${genre.toLowerCase()} style, photorealistic, 4K, no text, no watermark`;
+      const fallbackPrompt = `${idea}, cinematic ${aspectRatio}, ${genre.toLowerCase()} style, photorealistic, 4K, no text, no watermark`;
+      return this.promptBuilder.buildPromptWithGenre(genre, fallbackPrompt);
     }
   }
 
